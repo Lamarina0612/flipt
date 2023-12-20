@@ -57,8 +57,8 @@ func Test_Store(t *testing.T) {
 		t.Fatal("event not caught")
 	}
 
-	assert.NoError(t, s.View(func(s storage.ReadOnlyStore) error {
-		_, err = s.GetNamespace(ctx, "staging")
+	assert.NoError(t, s.View("", func(s storage.ReadOnlyStore) error {
+		_, err = s.GetNamespace(ctx, storage.NewNamespace("staging"))
 		return err
 	}))
 }

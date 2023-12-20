@@ -68,7 +68,7 @@ func TestGetEvaluationRules(t *testing.T) {
 		cachedStore = NewStore(store, cacher, logger)
 	)
 
-	rules, err := cachedStore.GetEvaluationRules(context.TODO(), "ns", "flag-1")
+	rules, err := cachedStore.GetEvaluationRules(context.TODO(), storage.NewResource("ns", "flag-1"))
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRules, rules)
 
@@ -94,7 +94,7 @@ func TestGetEvaluationRulesCached(t *testing.T) {
 		cachedStore = NewStore(store, cacher, logger)
 	)
 
-	rules, err := cachedStore.GetEvaluationRules(context.TODO(), "ns", "flag-1")
+	rules, err := cachedStore.GetEvaluationRules(context.TODO(), storage.NewResource("ns", "flag-1"))
 	assert.Nil(t, err)
 	assert.Equal(t, expectedRules, rules)
 	assert.Equal(t, "s:er:ns:flag-1", cacher.cacheKey)

@@ -3,7 +3,9 @@ package storage
 import (
 	"context"
 	"fmt"
+	"path"
 
+	"go.flipt.io/flipt/internal/containers"
 	"go.flipt.io/flipt/rpc/flipt"
 )
 
@@ -185,16 +187,16 @@ const DefaultNamespace = "default"
 type EvaluationStore interface {
 	// GetEvaluationRules returns rules applicable to flagKey provided
 	// Note: Rules MUST be returned in order by Rank
-	GetEvaluationRules(ctx context.Context, namespaceKey, flagKey string) ([]*EvaluationRule, error)
-	GetEvaluationDistributions(ctx context.Context, ruleID string) ([]*EvaluationDistribution, error)
-	GetEvaluationRollouts(ctx context.Context, namespaceKey, flagKey string) ([]*EvaluationRollout, error)
+	GetEvaluationRules(ctx context.Context, flag ResourcePredicate) ([]*EvaluationRule, error)
+	GetEvaluationDistributions(ctx context.Context, rule IDPredicate) ([]*EvaluationDistribution, error)
+	GetEvaluationRollouts(ctx context.Context, flag ResourcePredicate) ([]*EvaluationRollout, error)
 }
 
 // ReadOnlyNamespaceStore support retrieval of namespaces only
 type ReadOnlyNamespaceStore interface {
-	GetNamespace(ctx context.Context, key string) (*flipt.Namespace, error)
-	ListNamespaces(ctx context.Context, opts ...QueryOption) (ResultSet[*flipt.Namespace], error)
-	CountNamespaces(ctx context.Context) (uint64, error)
+	GetNamespace(ctx context.Context, ns NamespacePredicate) (*flipt.Namespace, error)
+	ListNamespaces(ctx context.Context, req *ListRequest[ReferencePredicate]) (ResultSet[*flipt.Namespace], error)
+	CountNamespaces(ctx context.Context, req ReferencePredicate) (uint64, error)
 }
 
 // NamespaceStore stores and retrieves namespaces
@@ -207,9 +209,9 @@ type NamespaceStore interface {
 
 // ReadOnlyFlagStore supports retrieval of flags
 type ReadOnlyFlagStore interface {
-	GetFlag(ctx context.Context, namespaceKey, key string) (*flipt.Flag, error)
-	ListFlags(ctx context.Context, namespaceKey string, opts ...QueryOption) (ResultSet[*flipt.Flag], error)
-	CountFlags(ctx context.Context, namespaceKey string) (uint64, error)
+	GetFlag(ctx context.Context, req ResourcePredicate) (*flipt.Flag, error)
+	ListFlags(ctx context.Context, req *ListRequest[NamespacePredicate]) (ResultSet[*flipt.Flag], error)
+	CountFlags(ctx context.Context, ns NamespacePredicate) (uint64, error)
 }
 
 // FlagStore stores and retrieves flags and variants
@@ -225,9 +227,9 @@ type FlagStore interface {
 
 // ReadOnlySegmentStore supports retrieval of segments and constraints
 type ReadOnlySegmentStore interface {
-	GetSegment(ctx context.Context, namespaceKey, key string) (*flipt.Segment, error)
-	ListSegments(ctx context.Context, namespaceKey string, opts ...QueryOption) (ResultSet[*flipt.Segment], error)
-	CountSegments(ctx context.Context, namespaceKey string) (uint64, error)
+	GetSegment(ctx context.Context, req ResourcePredicate) (*flipt.Segment, error)
+	ListSegments(ctx context.Context, req *ListRequest[NamespacePredicate]) (ResultSet[*flipt.Segment], error)
+	CountSegments(ctx context.Context, ns NamespacePredicate) (uint64, error)
 }
 
 // SegmentStore stores and retrieves segments and constraints
@@ -243,9 +245,9 @@ type SegmentStore interface {
 
 // ReadOnlyRuleStore supports retrieval of rules and distributions
 type ReadOnlyRuleStore interface {
-	GetRule(ctx context.Context, namespaceKey, id string) (*flipt.Rule, error)
-	ListRules(ctx context.Context, namespaceKey, flagKey string, opts ...QueryOption) (ResultSet[*flipt.Rule], error)
-	CountRules(ctx context.Context, namespaceKey, flagKey string) (uint64, error)
+	GetRule(ctx context.Context, ns NamespacePredicate, id string) (*flipt.Rule, error)
+	ListRules(ctx context.Context, req *ListRequest[ResourcePredicate]) (ResultSet[*flipt.Rule], error)
+	CountRules(ctx context.Context, flag ResourcePredicate) (uint64, error)
 }
 
 // RuleStore stores and retrieves rules and distributions
@@ -262,9 +264,9 @@ type RuleStore interface {
 
 // ReadOnlyRolloutStore supports retrieval of rollouts
 type ReadOnlyRolloutStore interface {
-	GetRollout(ctx context.Context, namespaceKey, id string) (*flipt.Rollout, error)
-	ListRollouts(ctx context.Context, namespaceKey, flagKey string, opts ...QueryOption) (ResultSet[*flipt.Rollout], error)
-	CountRollouts(ctx context.Context, namespaceKey, flagKey string) (uint64, error)
+	GetRollout(ctx context.Context, ns NamespacePredicate, id string) (*flipt.Rollout, error)
+	ListRollouts(ctx context.Context, req *ListRequest[ResourcePredicate]) (ResultSet[*flipt.Rollout], error)
+	CountRollouts(ctx context.Context, flag ResourcePredicate) (uint64, error)
 }
 
 // RolloutStore supports storing and retrieving rollouts
@@ -297,13 +299,120 @@ func ListWithQueryParamOptions[T any](opts ...QueryOption) ListOption[T] {
 	}
 }
 
+type ListPredicates interface {
+	GetLimit() int32
+	GetPageToken() string
+}
+
+type ListPredicatesWithOffset interface {
+	ListPredicates
+	GetOffset() int32
+}
+
+func List[T any](t T, p ListPredicates) *ListRequest[T] {
+	opts := []QueryOption{
+		WithLimit(uint64(p.GetLimit())),
+		WithPageToken(p.GetPageToken()),
+	}
+
+	if po, ok := p.(ListPredicatesWithOffset); ok {
+		opts = append(opts, WithOffset(uint64(po.GetOffset())))
+	}
+	return NewListRequest[T](t, ListWithQueryParamOptions[T](opts...))
+}
+
 // NewListRequest constructs a new ListRequest using the provided ListOption.
-func NewListRequest[T any](opts ...ListOption[T]) *ListRequest[T] {
-	req := &ListRequest[T]{}
+func NewListRequest[T any](t T, opts ...ListOption[T]) *ListRequest[T] {
+	req := &ListRequest[T]{
+		Predicate: t,
+	}
 
 	for _, opt := range opts {
 		opt(req)
 	}
 
 	return req
+}
+
+// Reference is a string which can refer to either a concrete
+// revision or it can be an indirect named reference
+type Reference string
+
+// ReferencePredicate is used to predicate a list request to a particular reference
+type ReferencePredicate struct {
+	Reference
+}
+
+func WithReference(ref string) containers.Option[ReferencePredicate] {
+	return func(rp *ReferencePredicate) {
+		if ref != "" {
+			rp.Reference = Reference(ref)
+		}
+	}
+}
+
+func ListWithReference(ref string) ListOption[ReferencePredicate] {
+	return func(rp *ListRequest[ReferencePredicate]) {
+		if ref != "" {
+			rp.Predicate.Reference = Reference(ref)
+		}
+	}
+}
+
+type NamespacePredicate struct {
+	ReferencePredicate
+	key string
+}
+
+func NewNamespace(key string, opts ...containers.Option[ReferencePredicate]) NamespacePredicate {
+	p := NamespacePredicate{key: key}
+
+	containers.ApplyAll(&p.ReferencePredicate, opts...)
+
+	return p
+}
+
+func (n NamespacePredicate) String() string {
+	return n.Namespace()
+}
+
+func (n NamespacePredicate) Namespace() string {
+	if n.key == "" {
+		return flipt.DefaultNamespace
+	}
+
+	return n.key
+}
+
+type ResourcePredicate struct {
+	NamespacePredicate
+	Key string
+}
+
+func NewResource(ns, key string, opts ...containers.Option[ReferencePredicate]) ResourcePredicate {
+	p := ResourcePredicate{
+		NamespacePredicate: NamespacePredicate{
+			key: ns,
+		},
+		Key: key,
+	}
+
+	containers.ApplyAll(&p.ReferencePredicate, opts...)
+
+	return p
+}
+
+func (p ResourcePredicate) String() string {
+	return path.Join(p.Namespace(), p.Key)
+}
+
+type IDPredicate struct {
+	ReferencePredicate
+	ID string
+}
+
+func NewID(id string, opts ...containers.Option[ReferencePredicate]) IDPredicate {
+	p := IDPredicate{ID: id}
+	containers.ApplyAll(&p.ReferencePredicate, opts...)
+	return p
 }

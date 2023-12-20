@@ -56,7 +56,7 @@ func WithPollOptions(opts ...containers.Option[storagefs.Poller]) containers.Opt
 
 // View passes the current snapshot to the provided function
 // while holding a read lock.
-func (s *SnapshotStore) View(fn func(storage.ReadOnlyStore) error) error {
+func (s *SnapshotStore) View(_ storage.Reference, fn func(storage.ReadOnlyStore) error) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return fn(s.snap)

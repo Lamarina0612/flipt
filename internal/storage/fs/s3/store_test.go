@@ -38,8 +38,8 @@ func Test_Store(t *testing.T) {
 	}
 
 	// flag shouldn't be present until we update it
-	require.Error(t, store.View(func(s storage.ReadOnlyStore) error {
-		_, err := s.GetFlag(context.TODO(), "production", "foo")
+	require.Error(t, store.View("", func(s storage.ReadOnlyStore) error {
+		_, err := s.GetFlag(context.TODO(), storage.NewResource("production", "foo"))
 		return err
 	}), "flag should not be defined yet")
 
@@ -69,18 +69,18 @@ flags:
 
 	t.Log("received new snapshot")
 
-	require.NoError(t, store.View(func(s storage.ReadOnlyStore) error {
-		_, err = s.GetNamespace(context.TODO(), "production")
+	require.NoError(t, store.View("", func(s storage.ReadOnlyStore) error {
+		_, err = s.GetNamespace(context.TODO(), storage.NewNamespace("production"))
 		if err != nil {
 			return err
 		}
 
-		_, err = s.GetFlag(context.TODO(), "production", "foo")
+		_, err = s.GetFlag(context.TODO(), storage.NewResource("production", "foo"))
 		if err != nil {
 			return err
 		}
 
-		_, err = s.GetNamespace(context.TODO(), "prefix")
+		_, err = s.GetNamespace(context.TODO(), storage.NewNamespace("prefix"))
 		return err
 	}))
 
@@ -93,8 +93,8 @@ func Test_Store_WithPrefix(t *testing.T) {
 	}
 
 	// namespace shouldn't exist as it has been filtered out by the prefix
-	require.Error(t, store.View(func(s storage.ReadOnlyStore) error {
-		_, err := s.GetNamespace(context.TODO(), "production")
+	require.Error(t, store.View("", func(s storage.ReadOnlyStore) error {
+		_, err := s.GetNamespace(context.TODO(), storage.NewNamespace("production"))
 		return err
 	}), "production namespace shouldn't be retrieavable")
 }
