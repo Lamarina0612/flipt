@@ -8,7 +8,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { toLower, upperFirst } from 'lodash';
 import { useMemo } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigationType } from 'react-router-dom';
 import { useListAuthProvidersQuery } from '~/app/auth/authApi';
 import logoFlag from '~/assets/logo-flag.png';
 import Loading from '~/components/Loading';
@@ -18,6 +18,10 @@ import { useError } from '~/data/hooks/error';
 import { useSession } from '~/data/hooks/session';
 import { IAuthMethod } from '~/types/Auth';
 import { useState } from 'react';
+import { useLoginBasicAuthMutation } from '~/app/auth/authApi';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { useNavigate } from 'react-router-dom';
 
 interface ILoginProvider {
   displayName: string;
@@ -31,7 +35,7 @@ interface IAuthDisplay {
   icon: IconDefinition;
 }
 
-interface ILoginFormState {
+export interface ILoginFormState {
   username: string;
   password: string;
 }
@@ -181,11 +185,14 @@ function InnerLoginButtons() {
 
 function InnerLogin() {
   const { session } = useSession();
+  const navigate = useNavigate();
   const [showBasicAuth, setShowBasicAuth] = useState(false);
   const [loginForm, setLoginForm] = useState<ILoginFormState>({
     username: '',
     password: ''
   });
+
+  const [login, { isLoading: isLoginLoading }] = useLoginBasicAuthMutation();
 
   const handleBasicAuthClick = () => {
     setShowBasicAuth(true);
@@ -197,6 +204,20 @@ function InnerLogin() {
 
   const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      const response = await login(loginForm).unwrap();
+      navigate('/');
+    } catch (error) {
+      const err = error as any;
+      if (err.status === 'PARSING_ERROR') {
+        console.log('Received HTML response:', err.data);
+        toast.error('Received HTML response, check console for details');
+      } else if (error instanceof Error) {
+        toast.error(`Login failed: ${error.message}`);
+      } else {
+        toast.error('Login failed: An unknown error occurred');
+      }
+    }
   }
 
   if (showBasicAuth) {
@@ -317,6 +338,7 @@ function InnerLogin() {
 export default function Login() {
   return (
     <NotificationProvider>
+      <ToastContainer />
       <InnerLogin />
       <ErrorNotification />
     </NotificationProvider>
