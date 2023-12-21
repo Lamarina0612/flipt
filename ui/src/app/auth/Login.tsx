@@ -17,6 +17,7 @@ import ErrorNotification from '~/components/notifications/ErrorNotification';
 import { useError } from '~/data/hooks/error';
 import { useSession } from '~/data/hooks/session';
 import { IAuthMethod } from '~/types/Auth';
+import { useState } from 'react';
 
 interface ILoginProvider {
   displayName: string;
@@ -28,6 +29,11 @@ interface IAuthDisplay {
   authorize_url: string;
   callback_url: string;
   icon: IconDefinition;
+}
+
+interface ILoginFormState {
+  username: string;
+  password: string;
 }
 
 const knownProviders: Record<string, ILoginProvider> = {
@@ -175,6 +181,52 @@ function InnerLoginButtons() {
 
 function InnerLogin() {
   const { session } = useSession();
+  const [showBasicAuth, setShowBasicAuth] = useState(false);
+  const [loginForm, setLoginForm] = useState<ILoginFormState>({
+    username: '',
+    password: ''
+  });
+
+  const handleBasicAuthClick = () => {
+    setShowBasicAuth(true);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLoginForm({ ... loginForm, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async(e: React.FormEvent) => {
+    e.preventDefault();
+  }
+
+  if (showBasicAuth) {
+    return (
+      <form onSubmit={handleSubmit}>
+        <label>
+          Username:
+          <input 
+            type="text" 
+            name="username" 
+            value={loginForm.username}
+            onChange={handleInputChange}
+            required 
+          />
+        </label>
+        <label>
+          Password:
+          <input 
+            type="password" 
+            name="password" 
+            value={loginForm.password}
+            onChange={handleInputChange}
+            required 
+          />
+         </label>
+         <button type="submit">Submit</button>
+      </form>    
+    );
+  }
+
 
   if (session && (!session.required || session.authenticated)) {
     return <Navigate to="/" />;
@@ -196,10 +248,18 @@ function InnerLogin() {
               <h2 className="text-gray-900 mt-6 text-center text-3xl font-bold tracking-tight">
                 Login to Flipt
               </h2>
+          
             </div>
             <div className="mt-8 max-w-sm sm:mx-auto sm:w-full md:max-w-lg">
-              <div className="px-4 py-8 sm:px-10">
-                <InnerLoginButtons />
+              <div className="px-4 py-8 sm:px-10 flex justify-center">
+              {!showBasicAuth && (
+              <button
+              className="bg-transparent hover:bg-purple-500 text-purple-700 font-semibold hover:text-white py-2 px-4 border border-purple-500 hover:border-transparent rounded"
+              onClick={handleBasicAuthClick}
+            >
+              With Basic Authentication
+            </button>
+              )}
               </div>
             </div>
           </div>
