@@ -201,29 +201,74 @@ function InnerLogin() {
 
   if (showBasicAuth) {
     return (
-      <form onSubmit={handleSubmit}>
-        <label>
-          Username:
-          <input 
-            type="text" 
-            name="username" 
-            value={loginForm.username}
-            onChange={handleInputChange}
-            required 
+      <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <img
+            src={logoFlag}
+            alt="logo"
+            className="mx-auto h-20 w-auto"
           />
-        </label>
-        <label>
-          Password:
-          <input 
-            type="password" 
-            name="password" 
-            value={loginForm.password}
-            onChange={handleInputChange}
-            required 
-          />
-         </label>
-         <button type="submit">Submit</button>
-      </form>    
+          <h2 className="mt-10 text-center text-3xl font-bold leading-9 tracking-tight text-gray-900">
+            Login to Flipt
+          </h2>
+        </div>
+
+        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium leading-6 text-gray-900">
+                Username
+              </label>
+              <div className="mt-2">
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  className="block w-full rounded-md border-purple-300 shadow-sm focus:border-purple-500 focus:ring focus:ring-purple-200"
+                  value={loginForm.username}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900">
+                Password
+              </label>
+              <div className="mt-2">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className="block w-full rounded-md border-purple-300 shadow-sm focus:border-purple-500 focus:ring focus:ring-purple-200"
+                  value={loginForm.password}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between space-x-4">
+              <button
+                type="button"
+                className="inline-flex justify-center rounded-md border border-transparent bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
+                onClick={() => setShowBasicAuth(false)} 
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="inline-flex justify-center rounded-md border border-transparent bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500"
+              >
+                Submit
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     );
   }
 
